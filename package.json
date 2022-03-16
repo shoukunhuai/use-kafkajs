@@ -1,7 +1,7 @@
 {
-  "name": "kaas",
+  "name": "use-kafkajs",
   "version": "1.0.0",
-  "description": "Kafka as a Service",
+  "description": "Kafka as a RESTful Service",
   "main": "dist/index.js",
   "types": "index.d.ts",
   "scripts": {
