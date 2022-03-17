@@ -21,23 +21,7 @@ const {
     LEVELS: {INFO},
 } = require("kafkajs/src/loggers");
 
-const LoggerConsole = require("kafkajs/src/loggers/console");
-const KafkaCluster = require("kafkajs/src/cluster");
-const defaultSF = require("kafkajs/src/network/socketFactory");
-
 const MEGA: number = 1024 * 1024;
-
-const json = (h: (req: any, res: any, next: NextFn) => Promise<any>) => {
-    return (req: Req, res: Resp, next: NextFn): Promise<any> => {
-        return h(req, res, next).then(x => res.json(x))
-            .catch((e: Error) => {
-                console.error(e);
-                res.status(500).json({
-                    errorMsg: e.message,
-                });
-            });
-    };
-};
 
 export type HTTP_METHOD = "GET" | "POST" | "DELETE" | "PUT";
 
@@ -314,53 +298,3 @@ export class Kfk {
     }
 }
 
-
-
-interface Query {
-    ack?: string;
-    seq?: string;
-    timeout?: string;
-    ts?: string;
-    partition?: string;
-}
-
-export function useKafka(
-    options: KfkConfig,
-    mountOptions: MountOptions = {}): Kfk {
-    const kfk = new Kfk(options);
-
-    const {pullConfigs} = options;
-
-    const {expressApp, mountPoint = "/kfk/"} = mountOptions;
-
-    if (expressApp) {
-        const rt = Router();
-        pullConfigs?.forEach((config) => {
-            const {topic, alias} = config;
-            const path = alias || topic;
-            rt.get(`/topics/${path}/records`, json(req => {
-                const {seq} = req.query as Query;
-                let {partition} = req.query;
-                partition = partition ? parseInt(partition) : 0;
-
-                if (isNaN(partition)) {
-                    return Promise.reject("Invalid partition: " + partition);
-                }
-
-                return kfk.fetch(config, partition, seq);
-            }));
-
-            rt.get(`/topics/${path}/offsets`, json((req) => {
-                let {ts} = req.query;
-                ts = ts ? isNaN(ts = parseInt(ts)) ? false :
-                    ts === 0 ? true : ts : false;
-
-                return kfk.offsetFetch(topic, ts);
-            }));
-        });
-
-        expressApp.use(mountPoint, rt);
-    }
-
-    return kfk;
-}
